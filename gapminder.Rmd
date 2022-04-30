@@ -1,0 +1,70 @@
+---
+title: "Part 1: Exploring the gapminder data"
+author: "Eva Wu"
+output: 
+  github_document:
+    toc: true
+---
+
+```{r setup, include = FALSE}
+knitr::opts_chunk$set(echo = FALSE, message = FALSE, warning = FALSE)
+library(tidyverse)
+library(gapminder)
+library(geonames)
+library(countrycode) # to format country names
+```
+
+## Load, merge, and tidy the data
+
+```{r data}
+usethis::edit_r_profile(scope = "project")  # edit Rprofile to create key; scope saves it in the Rproj directory; only need to run once
+country_info <- GNcountryInfo() %>%
+  as_tibble()
+```
+
+In this section, we loaded the geonames data from the web, used countrycode() to find the respective iso3 code for each country, merged the geonames and gapminder data frames, calculated the population density using population divided by area, and selected the columns of interest.
+
+```{r merge_calc}
+country_info$iso3c <- countrycode(country_info$countryCode, origin = "iso2c", destination = "iso3c", warn = FALSE)
+gapminder$iso3c <- countrycode(gapminder$country, origin = "country.name", destination = "iso3c", warn = FALSE)
+merged_data <- left_join(country_info, gapminder, by = "iso3c") %>%
+  mutate(areaInSqKm = as.numeric(areaInSqKm)) %>%
+  mutate(pop_density = pop/areaInSqKm) %>%
+  select(iso3c, continentName, pop_density, lifeExp) %>%
+  glimpse()
+```
+
+## Plot the data
+
+```{r plot}
+ggplot(merged_data, aes(pop_density, lifeExp)) +
+  geom_point(alpha = 0.3) +
+  geom_smooth() +
+  labs(title = "Life Expectancy by Population Density", 
+       x = "Population Density (per km²)", 
+       y = "Life Expectancy", 
+       caption = "Sources: geonames & gapminder") +
+  theme_minimal()
+```
+
+This plot shows the relationship between life expectancy and population density among all countries in the world. We cannot conclude that there is a significant positive correlation between the two variables just from this graph, but there is an overall trend that as population density increases, life expectancy increases as well. More specifically, when the population density is under 500, there is a sharp increase in life expectancy as population density increases. However, when population density is greater than 500, the line becomes flatter - life expectancy does not change much as population density increases.
+
+```{r plot_upgraded}
+ggplot(merged_data, aes(pop_density, lifeExp)) +
+  geom_point(alpha = 0.3) +
+  geom_smooth() +
+  facet_wrap(~continentName, scales = "free_x") +   # adjust x-axis scaling
+  labs(title = "Life Expectancy by Population Density in Each Continent", 
+       x = "Population Density (per km²)", 
+       y = "Life Expectancy", 
+       caption = "Sources: geonames & gapminder") +
+  theme_minimal()
+```
+
+Here we explored the relationship between life expectancy and population density in different continents. As shown in the graph, we can see that in Asia, Africa, and South America, there is a positive correlation between the two variables. The greater population density, the longer life expectancy. However, in Europe, North America, and Oceania, life expectancy stays fairly constant across different population densities. There is not enough data in Antarctica to create a graph, since there is only an extremely small population on that continent. 
+
+# Session info
+
+```{r session_info}
+devtools::session_info()
+```

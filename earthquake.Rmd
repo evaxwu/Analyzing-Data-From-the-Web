@@ -1,0 +1,123 @@
+---
+title: 'Part 2: More complicated data collection'
+author: "Eva Wu"
+output: 
+  github_document:
+    toc: true
+---
+
+```{r setup, include = FALSE}
+knitr::opts_chunk$set(echo = FALSE, message = FALSE, warning = FALSE)
+library(tidyverse)
+library(httr)
+```
+
+## Load the data
+
+```{r data, echo = TRUE}
+earthquake <- function(alert) {
+  # send GET request
+  response <- GET(
+    url = "https://earthquake.usgs.gov/fdsnws/event/1/query?",  # provide base url
+    query = list(
+      format = "csv",
+      starttime = "2000-01-01",  # focus on earthquakes after 2000
+      endtime = "2021-11-30",
+      eventtype = "earthquake",
+      orderby = "magnitude",     # arrange by magnitude
+      alertlevel = alert    # focus on earthquakes with red alert level
+    )
+  )
+  # parse response to JSON
+  response_df <- content(response) %>%
+    as_tibble()
+  return(response_df)
+}
+
+red <- earthquake("red")
+orange <- earthquake("orange")
+yellow <- earthquake("yellow")
+green <- earthquake("green")
+# I did it this way rather than using the combined data because I wanted to use my own selections of colors;
+# also getting all the data takes too long and the server won't respond in forever b/c the file is too large
+```
+## Explore the data
+
+### Distribution of earthquakes
+
+```{r dist}
+world <- map_data("world")  # create an object to make a world map (function w/in tidyverse)
+# graph the distribution of earthquakes from 2000 on, color code based on alert levels
+ggplot() +
+  geom_map(data = world, map = world, mapping = aes(long, lat, map_id = region),
+           color = "darkgrey", fill = "lightgrey", size = 0.1)  +
+  geom_point(data = green, mapping = aes(longitude, latitude), color = "aquamarine3", alpha = 0.3) +
+  geom_point(data = yellow, mapping = aes(longitude, latitude), color = "yellow", alpha = 0.6) +
+  geom_point(data = orange, mapping = aes(longitude, latitude), color = "darkorange", alpha = 0.7) +
+  geom_point(data = red, mapping = aes(longitude, latitude), color = "red", alpha = 0.8) +
+  labs(title = "Worldwide Distribution of Earthquakes (2000-present)", 
+       subtitle = "Color-coded based on alert level (red = most severe, green = least severe)",
+       x = "Longtitude", 
+       y = "Latitude", 
+       caption = "Source: USGS Earthquake Catalog") +
+  theme_minimal()
+```
+
+This map shows the distribution of earthquakes from 2000 to present. From the plot we can see that there are many more earthquakes with green alert level documented than those with yellow alert level, than those with orange alert level, which is still more than those with red alert level. The more severe the earthquake is, the less frequently it might happen. Also, the green ones seem to cover a more widespread area, with many of them occurring in the ocean, while the red ones seem to only occur on or near the continent across the latitude of 0-50.
+
+### Latitude and magnitude
+
+```{r lat_mag}
+ggplot() +
+  geom_smooth(green, mapping = aes(latitude, mag), se = FALSE, color = "aquamarine3") +
+  geom_smooth(yellow, mapping = aes(latitude, mag), se = FALSE, color = "yellow") +
+  geom_smooth(orange, mapping = aes(latitude, mag), se = FALSE, color = "darkorange") +
+  geom_smooth(red, mapping = aes(latitude, mag), se = FALSE, color = "red") +
+  labs(title = "Relationship between Latitude and Magnitude",
+       subtitle = "Color-coded based on alert level (red = most severe, green = least severe)",
+       x = "Latitude", y = "Magnitude", 
+       caption = "Source: USGS Earthquake Catalog") +
+  theme_minimal()
+```
+
+This graph shows the relationship between latitude and magnitude of earthquakes. As seen in the graph, there is not a clear relationship between these two variables, but there is a trend for earthquakes with green alert level - the greater latitude, the smaller magnitude. We can also tell from the graph that green-level earthquakes spread over a wide range of latitude, while the red-level ones cover only a small range.
+
+### Longitude and magnitude
+
+```{r long_mag}
+ggplot() +
+  geom_smooth(green, mapping = aes(longitude, mag), se = FALSE, color = "aquamarine3") +
+  geom_smooth(yellow, mapping = aes(longitude, mag), se = FALSE, color = "yellow") +
+  geom_smooth(orange, mapping = aes(longitude, mag), se = FALSE, color = "darkorange") +
+  geom_smooth(red, mapping = aes(longitude, mag), se = FALSE, color = "red") +
+  labs(title = "Relationship between Longitude and Magnitude",
+       subtitle = "Color-coded based on alert level (red = most severe, green = least severe)",
+       x = "Longitude", y = "Magnitude", 
+       caption = "Source: USGS Earthquake Catalog") +
+  theme_minimal()
+```
+
+Again, this graph does not show a clear overall relationship between longitude and magnitude. However, the green-level earthquakes have a sharp decrease in magnitude between the longitude of -200 and -150, and then there is a slow increase from -150 on. The yellow- and orange-level earthquakes showed a slow decrease in magnitude until longitude 0, where the magnitude starts to increase. This graph also shows that earthquakes with all alert levels cover a wide range of longitude. 
+
+### Depth and Magnitude
+
+```{r depth_mag}
+ggplot() +
+  geom_smooth(green, mapping = aes(depth, mag), se = FALSE, color = "aquamarine3") +
+  geom_smooth(yellow, mapping = aes(depth, mag), se = FALSE, color = "yellow") +
+  geom_smooth(orange, mapping = aes(depth, mag), se = FALSE, color = "darkorange") +
+  geom_smooth(red, mapping = aes(depth, mag), se = FALSE, color = "red") +
+  labs(title = "Relationship between Depth and Magnitude",
+       subtitle = "Color-coded based on alert level (red = most severe, green = least severe)",
+       x = "Depth", y = "Magnitude", 
+       caption = "Source: USGS Earthquake Catalog") +
+  theme_minimal()
+```
+
+As shown in the graph, there is an overall trend that as depth increases, magnitude increases. For earthquakes with all alert levels, there is a sharp increase in magnitude as depth increases at first, followed by a sharp decrease in magnitude as depth increases, and then a fairly stable increase for all levels but red, which has a sharper increase. Also, it is obvious that green-level earthquakes have a wider range of depth than orange- and yellow-level ones, which have an even wider range than red-level ones.
+
+## Session info
+
+```{r session_info}
+devtools::session_info()
+```
